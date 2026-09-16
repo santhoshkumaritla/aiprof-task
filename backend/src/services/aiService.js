@@ -621,7 +621,13 @@ CRITICAL TUTORING RULES:
    - DO NOT write "[Source: ...]" or "(Source: ...)" anywhere in your response text. Keep the text completely clean.
    - Keep all output completely clean, legible, and well-structured.
    - Use clean bullet points (• ) for all lists, takeaways, and sub-items.
-   - Use clear markdown headings (### Header) without asterisks for sections (e.g. ### 📖 Document Overview, ### 📑 Core Sections, ### 💡 Key Takeaways).`;
+   - Use clear markdown headings (### Header) without asterisks for sections (e.g. ### 📖 Document Overview, ### 📑 Core Sections, ### 💡 Key Takeaways).
+
+5. STRICT RESTRICTION TO UPLOADED MATERIALS (NO EXTERNAL TRIVIA / GENERAL KNOWLEDGE):
+   - You are STRICTLY RESTRICTED to answering based solely on the provided Evidence Context from the uploaded study material(s).
+   - If the user asks a question about general knowledge, historical figures, politics, external trivia, or anything not explicitly present in the provided Evidence Context (such as "father of nation", national leaders, food recipes, or unrelated topics):
+   - DO NOT answer using external knowledge and DO NOT attempt to metaphorically bridge or connect it.
+   - You MUST explicitly state: "This topic is not covered in your uploaded project materials. As your AI Study Companion, my responses are strictly restricted to your uploaded documents. Please ask questions related to the concepts in your notes."`;
 
       const composedPrompt = `${systemPrompt}
 
@@ -653,6 +659,8 @@ User Question: ${userPrompt}`;
           }
           if (generatedText) {
             generatedText = this.cleanFormatting(generatedText);
+            const isRefusal = /not covered in (?:the|your) uploaded|could not find (?:any )?(?:information|evidence)|strictly restricted to your uploaded/i.test(generatedText);
+
             await ObservabilityService.logCall({
               userId,
               projectId,
@@ -662,13 +670,15 @@ User Question: ${userPrompt}`;
               promptTokens: this.estimateTokens(composedPrompt),
               completionTokens: this.estimateTokens(generatedText),
               latencyMs: Date.now() - startTime,
-              status: 'success'
+              status: 'success',
+              metadata: { isUnsupported: isRefusal }
             });
 
             return {
               text: generatedText,
-              citations,
-              isUnsupported: false
+              citations: isRefusal ? [] : citations,
+              isUnsupported: isRefusal,
+              unsupportedReason: isRefusal ? 'Topic is not covered in uploaded materials.' : null
             };
           }
         } catch (err) {
@@ -701,75 +711,61 @@ User Question: ${userPrompt}`;
       };
     }
 
-    // Case 2: No evidence chunks found (user hasn't uploaded materials yet or query didn't match specific chunk)
-    // Provide rich pedagogical guidance without crashing or giving a cold refusal
-    const guidancePrompt = `You are the AI Study Companion Tutor.
-The user is studying towards: "${learningGoal || 'Core subject mastery'}".
-The user asked: "${userPrompt}".
-No specific document was cited, so provide a thorough, structured, pedagogical explanation explaining core principles, key definitions, real-world examples, and study advice.
-End by gently advising the user to upload course PDFs or notes to activate page-level citations.
-FORMATTING: DO NOT use double asterisks (**). Use clean bullet points (• ) and clear section headings.`;
+    // Case 2: User has uploaded materials, but NO evidence chunks were found for this query in the document
+    if (materials && materials.length > 0) {
+      const docNames = materials.map(m => m.originalName).filter(Boolean).join(', ') || 'Uploaded Study Materials';
+      const notFoundMsg = `I could not find any information or evidence regarding "${userPrompt}" in your uploaded project materials (${docNames}).
 
-    if (this.geminiApiKey) {
-      try {
-        let generatedText = null;
-        if (onToken) {
-          generatedText = await this.streamGemini(guidancePrompt, (chunk) => {
-            onToken(chunk.replaceAll('**', ''));
-          });
-        }
-        if (!generatedText) {
-          generatedText = await this.callGemini(guidancePrompt);
-          if (generatedText) {
-            generatedText = this.cleanFormatting(generatedText);
-            this.emitFakeStream(generatedText, onToken);
-          }
-        }
-        if (generatedText) {
-          generatedText = this.cleanFormatting(generatedText);
-          await ObservabilityService.logCall({
-            userId,
-            projectId,
-            feature: 'tutor_chat',
-            model: this.geminiModel,
-            provider: 'gemini',
-            promptTokens: this.estimateTokens(guidancePrompt),
-            completionTokens: this.estimateTokens(generatedText),
-            latencyMs: Date.now() - startTime,
-            status: 'success'
-          });
+As your AI Study Companion, my responses are strictly restricted to your uploaded document(s). Please ask questions related to the concepts, syntax, or topics present in your study materials.`;
 
-          return {
-            text: generatedText,
-            citations: [],
-            isUnsupported: false
-          };
-        }
-      } catch (err) {
-        console.warn('[AIService Gemini Guidance] API error, falling back to content engine:', err.message);
-      }
+      this.emitFakeStream(notFoundMsg, onToken);
+
+      await ObservabilityService.logCall({
+        userId,
+        projectId,
+        feature: 'tutor_chat',
+        model,
+        provider: this.geminiApiKey ? 'gemini' : 'content-engine',
+        promptTokens: this.estimateTokens(userPrompt),
+        completionTokens: this.estimateTokens(notFoundMsg),
+        latencyMs: Date.now() - startTime,
+        status: 'success',
+        metadata: { isUnsupported: true }
+      });
+
+      return {
+        text: notFoundMsg,
+        citations: [],
+        isUnsupported: true,
+        unsupportedReason: `No evidence found in uploaded materials (${docNames}) for query "${userPrompt}".`
+      };
     }
 
-    let ungroundedGuidance = this.synthesizeGuidanceAnswer(userPrompt, learningGoal);
-    ungroundedGuidance = this.cleanFormatting(ungroundedGuidance);
-    this.emitFakeStream(ungroundedGuidance, onToken);
+    // Case 3: No study materials uploaded yet to this project
+    const noMaterialsMsg = `No study materials have been uploaded to this project yet.
+
+Please upload your course PDF, textbook, or handwritten notes in the **Materials** tab so I can provide grounded explanations, page-level citations, and adaptive quizzes tailored specifically to your curriculum.`;
+
+    this.emitFakeStream(noMaterialsMsg, onToken);
 
     await ObservabilityService.logCall({
       userId,
       projectId,
       feature: 'tutor_chat',
       model,
-      provider: 'content-engine',
+      provider: this.geminiApiKey ? 'gemini' : 'content-engine',
       promptTokens: this.estimateTokens(userPrompt),
-      completionTokens: this.estimateTokens(ungroundedGuidance),
+      completionTokens: this.estimateTokens(noMaterialsMsg),
       latencyMs: Date.now() - startTime,
-      status: 'success'
+      status: 'success',
+      metadata: { isUnsupported: true }
     });
 
     return {
-      text: ungroundedGuidance,
+      text: noMaterialsMsg,
       citations: [],
-      isUnsupported: false
+      isUnsupported: true,
+      unsupportedReason: 'No study materials uploaded to this project yet.'
     };
   }
 

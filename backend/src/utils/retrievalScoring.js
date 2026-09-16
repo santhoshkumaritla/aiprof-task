@@ -244,7 +244,7 @@ function scoreChunks(chunks, query, { minScoreThreshold = 0.15, materialMap = {}
     if (tokens.length > 0) {
       for (const tok of tokens) {
         if (tok.length >= 4) {
-          const headingRegex = new RegExp(`(?:^|\\n)\\s*(?:\\d{1,2}\\.?\\s+)?([A-Za-z0-9\\s,&–—/-]*${tok}[A-Za-z0-9\\s,&–—/-]*)(?=\\n|$)`, 'i');
+          const headingRegex = new RegExp(`(?:^|\\n)\\s*(?:\\d{1,2}\\.?\\s+)?([A-Za-z0-9\\s,&–—/-]*\\b${tok}\\b[A-Za-z0-9\\s,&–—/-]*)(?=\\n|$)`, 'i');
           if (headingRegex.test(chunk.content)) {
             finalScore += 0.65;
             break;

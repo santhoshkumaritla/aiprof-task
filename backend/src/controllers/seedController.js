@@ -27,12 +27,28 @@ exports.seedDemoData = async (req, res) => {
       await demoUser.save();
     }
 
+    let mainAdmin = await User.findOne({ email: 'admin@gmail.com' });
+    if (!mainAdmin) {
+      mainAdmin = await User.create({
+        name: 'Administrator',
+        email: 'admin@gmail.com',
+        password: 'admin123',
+        role: 'admin',
+        avatarColor: '#10B981'
+      });
+    } else {
+      mainAdmin.role = 'admin';
+      const matches = await mainAdmin.matchPassword('admin123');
+      if (!matches) mainAdmin.password = 'admin123';
+      await mainAdmin.save();
+    }
+
     let adminUser = await User.findOne({ email: 'itlasanthoshkumar@gmail.com' });
     if (!adminUser) {
       adminUser = await User.create({
         name: 'Santhosh (Admin)',
         email: 'itlasanthoshkumar@gmail.com',
-        password: 'password123',
+        password: 'admin123',
         role: 'admin',
         avatarColor: '#10B981'
       });

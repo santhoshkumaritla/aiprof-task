@@ -37,6 +37,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const seedRoutes = require('./routes/seedRoutes');
 const jobQueue = require('./workers/jobQueue');
+const ensureDefaultAccounts = require('./config/bootstrap');
 const { rateLimit } = require('./middleware/rateLimit');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -85,6 +86,7 @@ app.use(errorHandler);
 // Connect to Database and start listening
 connectDB()
   .then(async () => {
+    await ensureDefaultAccounts();
     const isProduction = process.env.NODE_ENV === 'production';
     const PORT = (isProduction && process.env.PORT) ? Number(process.env.PORT) : await findAvailablePort(preferredPort);
     app.listen(PORT, '0.0.0.0', () => {

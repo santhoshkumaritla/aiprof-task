@@ -75,7 +75,7 @@ async function runTests() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${userToken}`
       },
-      body: JSON.stringify({ message: 'What is gradient descent and how does learning rate affect it?' })
+      body: JSON.stringify({ message: 'Explain the core concepts from my uploaded material' })
     });
     const data = await res.json();
     assert.strictEqual(res.status, 200);

@@ -85,11 +85,12 @@ app.use(errorHandler);
 // Connect to Database and start listening
 connectDB()
   .then(async () => {
-    const PORT = await findAvailablePort(preferredPort);
-    app.listen(PORT, () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const PORT = (isProduction && process.env.PORT) ? Number(process.env.PORT) : await findAvailablePort(preferredPort);
+    app.listen(PORT, '0.0.0.0', () => {
       jobQueue.startWorker();
-      console.log(`[AI Study Companion Server] Running on http://localhost:${PORT}`);
-      console.log(`[AI] Primary model: ${process.env.GEMINI_MODEL || 'gemini-3.8-flash'}`);
+      console.log(`[AI Study Companion Server] Running on port ${PORT}`);
+      console.log(`[AI] Primary model: ${process.env.GEMINI_MODEL || 'gemini-3.5-flash'}`);
     });
   })
   .catch((err) => {

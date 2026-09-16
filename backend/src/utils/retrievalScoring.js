@@ -25,6 +25,14 @@ const OVERVIEW_PATTERNS = [
   /what(?:'?s|\s+is)\s+my\s+project/i,
   /summar/i,
   /overview/i,
+  /\bcore\s+concepts\b/i,
+  /\bkey\s+concepts\b/i,
+  /\bmain\s+concepts\b/i,
+  /\ball\s+pages\b/i,
+  /\bentire\s+(?:pdf|doc|document|material|notes)\b/i,
+  /\bexplain\s+(?:the\s+)?(?:core\s+|key\s+)?concepts\b/i,
+  /\bfrom\s+my\s+uploaded\s+material\b/i,
+  /\buploaded\s+material\b/i,
   /content/i,
   /document/i,
   /pdf/i,
@@ -118,6 +126,69 @@ function scoreChunks(chunks, query, { minScoreThreshold = 0.15, materialMap = {}
       targetMaterialId = mId;
       break;
     }
+  }
+
+  // Full-Spectrum Overview / Summarization: Covers the ENTIRE document from Page 1 to the final page
+  if (isOverview) {
+    const eligibleChunks = targetMaterialId
+      ? chunks.filter((c) => String(c.materialId || '') === String(targetMaterialId))
+      : chunks;
+
+    if (!eligibleChunks || eligibleChunks.length === 0) return [];
+
+    const sorted = eligibleChunks.slice().sort((a, b) => {
+      const pDiff = (a.pageNumber || 1) - (b.pageNumber || 1);
+      if (pDiff !== 0) return pDiff;
+      return (a.chunkIndex || 0) - (b.chunkIndex || 0);
+    });
+
+    // If total chunks fits within topK (e.g. 40 chunks <= 45), return ALL chunks across ALL pages!
+    if (sorted.length <= topK) {
+      return sorted.map((chunk) => ({
+        chunkId: chunk._id,
+        materialId: chunk.materialId,
+        materialName: materialMap[chunk.materialId?.toString?.() || chunk.materialId] || chunk.materialName || 'Uploaded Material',
+        pageNumber: chunk.pageNumber || 1,
+        content: chunk.content,
+        score: 0.95
+      }));
+    }
+
+    // Stratified uniform sampling across [minPage, maxPage] so every section is represented
+    const minP = sorted[0].pageNumber || 1;
+    const maxP = sorted[sorted.length - 1].pageNumber || minP;
+
+    const selected = [];
+    const usedIndices = new Set();
+
+    for (let i = 0; i < topK; i++) {
+      const targetPage = minP + Math.round((i * (maxP - minP)) / (topK - 1));
+      let bestIdx = -1;
+      let minDiff = Infinity;
+      for (let j = 0; j < sorted.length; j++) {
+        if (usedIndices.has(j)) continue;
+        const diff = Math.abs((sorted[j].pageNumber || 1) - targetPage);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestIdx = j;
+        }
+      }
+      if (bestIdx !== -1) {
+        usedIndices.add(bestIdx);
+        selected.push(sorted[bestIdx]);
+      }
+    }
+
+    selected.sort((a, b) => (a.pageNumber || 1) - (b.pageNumber || 1) || (a.chunkIndex || 0) - (b.chunkIndex || 0));
+
+    return selected.map((chunk) => ({
+      chunkId: chunk._id,
+      materialId: chunk.materialId,
+      materialName: materialMap[chunk.materialId?.toString?.() || chunk.materialId] || chunk.materialName || 'Uploaded Material',
+      pageNumber: chunk.pageNumber || 1,
+      content: chunk.content,
+      score: 0.95
+    }));
   }
 
   // Determine min and max page numbers across document chunks (filtered to target material if present)
@@ -219,24 +290,10 @@ function scoreChunks(chunks, query, { minScoreThreshold = 0.15, materialMap = {}
           }
         }
       }
-    } else if (isOverview) {
-      // 2. Structural and page-aware ranking enhancements for Overview queries
-      const isEarlyPage = pNum <= 2;
-      const isTOC = pNum >= 3 && pNum <= 5;
-      const pageBonus = isEarlyPage ? 0.30 : (isTOC ? 0.35 : 0);
-
-      const hasStructure = /\b(?:overview|summary|introduction|table of contents|contents|chapter \d|executive summary|declaration|abstract)\b/i.test(chunk.content);
-      const structBonus = hasStructure ? 0.25 : 0;
-
-      if (matchedUniqueTokens > 0) {
-        finalScore = Math.min(1.0, finalScore + pageBonus + structBonus);
-      } else {
-        finalScore = 0.30 + pageBonus + structBonus;
-      }
     }
 
     const threshold = pageIntent !== null ? 0.50 : minScoreThreshold;
-    if (finalScore >= threshold || (isOverview && (pNum <= 5 || finalScore >= 0.25))) {
+    if (finalScore >= threshold) {
       scoredChunks.push({
         chunkId: chunk._id,
         materialId: chunk.materialId,
@@ -248,42 +305,7 @@ function scoreChunks(chunks, query, { minScoreThreshold = 0.15, materialMap = {}
     }
   }
 
-  // Fallback for overview queries if nothing met strict threshold
-  if (scoredChunks.length === 0 && chunks.length > 0 && isOverview) {
-    chunks.slice(0, topK).forEach((chunk) => {
-      scoredChunks.push({
-        chunkId: chunk._id,
-        materialId: chunk.materialId,
-        materialName: materialMap[chunk.materialId?.toString?.() || chunk.materialId] || chunk.materialName || 'Uploaded Material',
-        pageNumber: chunk.pageNumber || 1,
-        content: chunk.content,
-        score: 0.65
-      });
-    });
-  }
-
   scoredChunks.sort((a, b) => b.score - a.score);
-
-  // For overview queries, ensure diverse page representation
-  if (isOverview && scoredChunks.length > topK) {
-    const selected = [];
-    const seenPages = new Set();
-    for (const item of scoredChunks) {
-      if (!seenPages.has(item.pageNumber)) {
-        seenPages.add(item.pageNumber);
-        selected.push(item);
-      }
-      if (selected.length >= topK) break;
-    }
-    // If still have room, add highest remaining
-    for (const item of scoredChunks) {
-      if (!selected.includes(item) && selected.length < topK) {
-        selected.push(item);
-      }
-    }
-    return selected;
-  }
-
   return scoredChunks.slice(0, topK);
 }
 

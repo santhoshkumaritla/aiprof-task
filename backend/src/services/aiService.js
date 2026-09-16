@@ -412,6 +412,9 @@ CRITICAL INSTRUCTIONS:
   cleanFormatting(text) {
     if (!text) return text;
     let cleaned = String(text);
+    // Remove inline source citation tags like [Source: ... | Page X] or (Source: ...)
+    cleaned = cleaned.replace(/\[Source:[^\]]*\]/gi, '');
+    cleaned = cleaned.replace(/\(Source:[^)]*\)/gi, '');
     // Standardize bullet points at start of line (* or -) to clean unicode bullet •
     cleaned = cleaned.replace(/^(\s*)[*-]\s+/gm, '$1• ');
     // Remove all double asterisks (**) completely
@@ -420,6 +423,10 @@ CRITICAL INSTRUCTIONS:
     cleaned = cleaned.replace(/(^|[\s(])\*([^*\n]+)\*([\s),.:;!?]|$)/g, '$1$2$3');
     // Remove any remaining stray asterisks
     cleaned = cleaned.replace(/\*/g, '');
+    // Clean up multiple horizontal spaces left behind
+    cleaned = cleaned.replace(/[ \t]{2,}/g, ' ');
+    // Clean up any trailing space before punctuation left by removed citation tags
+    cleaned = cleaned.replace(/\s+([.,;:!?])/g, '$1');
     return cleaned.trim();
   }
 
@@ -552,15 +559,23 @@ CRITICAL INSTRUCTIONS:
 
     // Case 1: When evidence chunks ARE found in project documents
     if (evidenceChunks && evidenceChunks.length > 0) {
-      const citations = evidenceChunks.map((chunk) => ({
-        materialId: chunk.materialId || null,
-        materialName: chunk.materialName || 'Uploaded Document',
-        pageNumber: chunk.pageNumber || 1,
-        excerpt: chunk.content ? chunk.content.slice(0, 160).trim() + '...' : ''
-      }));
+      const seenCitationKeys = new Set();
+      const citations = [];
+      for (const chunk of evidenceChunks) {
+        const key = `${chunk.materialId || ''}_${chunk.pageNumber || 1}`;
+        if (!seenCitationKeys.has(key)) {
+          seenCitationKeys.add(key);
+          citations.push({
+            materialId: chunk.materialId || null,
+            materialName: chunk.materialName || 'Uploaded Document',
+            pageNumber: chunk.pageNumber || 1,
+            excerpt: chunk.content ? chunk.content.slice(0, 160).trim() + '...' : ''
+          });
+        }
+      }
 
       const contextText = evidenceChunks
-        .map(c => `[Source: ${c.materialName || 'Document'} | Page ${c.pageNumber || 1}]\n${c.content}`)
+        .map(c => `[Evidence | Page ${c.pageNumber || 1}]:\n${c.content}`)
         .join('\n\n---\n\n');
 
       const recentTurns = (conversationHistory || [])
@@ -583,25 +598,27 @@ ${materialsSummary}
 CRITICAL TUTORING RULES:
 1. STRICT GROUNDING IN THE PROJECT:
    - Always give your answer strictly according to the uploaded project materials and curriculum. Do not output unrelated or random answers.
-   - Rely strictly on facts, findings, chapters, data, and citations from the uploaded documents.
-   - Reference citations naturally with page numbers (e.g. "[Source: Document | Page X]").
+   - Rely strictly on facts, findings, chapters, data, commands, syntax, and concepts from the uploaded documents.
+   - DO NOT write "[Source: ... | Page X]" or inline citation tags in your text response. Present all explanations, tutorials, and summaries cleanly and naturally. The user interface surfaces document citations separately.
 
-2. HANDLING DOCUMENT / PROJECT OVERVIEW ("what is presented in this?", "what are content are presented in this?"):
-   - When the user asks "what are content are presented in this ?", "what is in this?", "what does this contain?", or asks about the content of the project/material, they are asking about the ENTIRE PROJECT AND ITS MATERIALS (NOT just an isolated table, paragraph, or single page discussed in a prior message).
-   - DO NOT repeat the previous turn's response. If the previous message discussed a specific table or page, step back and provide a rich, comprehensive breakdown of the entire document/project.
+2. HANDLING DOCUMENT / PROJECT OVERVIEW & SUMMARIZATION ("summarize the document", "explain core concepts from uploaded material", "what is presented in this?"):
+   - When asked to summarize or explain core concepts from the uploaded materials, you MUST cover and synthesize across ALL provided pages and sections of the document from the beginning through the middle chapters to the final concluding pages.
+   - DO NOT limit your summary to just the opening 5 or 6 pages. Cover the full breadth of the curriculum present in the evidence.
+   - Group the concepts logically across the curriculum (e.g. Overview, Core Concepts, Syntax & Commands, Advanced Features, and Practical Guidelines).
    - Structure the response with:
-     * 📖 **Document Title & Overview**
-     * 🎯 **Core Purpose & Theme**
-     * 📑 **Main Sections & Chapters** (referencing the Table of Contents / Outline across the document)
-     * 🔬 **Methodology & Key Concepts**
-     * 📊 **Major Findings & Data**
-     * 🎯 **Recommended Study Next Steps**
+     ### 📖 Document Title & Overview
+     ### 🎯 Core Purpose & Theme
+     ### 📑 Complete Curriculum & Sections Covered (covering all topics across all pages)
+     ### 🔬 Detailed Methodology, Syntax & Key Concepts
+     ### 📊 Major Practical Rules & Data
+     ### 🎯 Recommended Study Next Steps
 
 3. HANDLING PAGE-SPECIFIC QUERIES ("what is in the last page", "page X"):
    - When the user asks about the "last page", "final page", or a specific page number, accurately describe what is on that page based on the evidence provided for that page number. For example, if the document has 24 pages, the last page is Page 24 (e.g. Bibliography/References or Conclusion), NOT an arbitrary intermediate page.
 
 4. CRITICAL STRUCTURE & FORMATTING RULES:
    - DO NOT USE DOUBLE ASTERISKS (**) FOR BOLDING. NEVER write **word** or use bold markdown.
+   - DO NOT write "[Source: ...]" or "(Source: ...)" anywhere in your response text. Keep the text completely clean.
    - Keep all output completely clean, legible, and well-structured.
    - Use clean bullet points (• ) for all lists, takeaways, and sub-items.
    - Use clear markdown headings (### Header) without asterisks for sections (e.g. ### 📖 Document Overview, ### 📑 Core Sections, ### 💡 Key Takeaways).`;
@@ -622,8 +639,8 @@ User Question: ${userPrompt}`;
           let generatedText = null;
           if (onToken) {
             generatedText = await this.streamGemini(composedPrompt, (chunk) => {
-              // Strip asterisks in real-time stream
-              const cleanChunk = chunk.replaceAll('**', '');
+              // Strip asterisks and inline source tags in real-time stream
+              const cleanChunk = chunk.replaceAll('**', '').replace(/\[Source:[^\]]*\]/gi, '');
               onToken(cleanChunk);
             });
           }

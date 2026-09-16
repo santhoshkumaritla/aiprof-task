@@ -22,7 +22,7 @@ class RetrievalService {
     const pageIntent = detectPageIntent(query);
     const hasPageIntent = pageIntent !== null;
     const isRange = typeof pageIntent === 'object' && pageIntent !== null && pageIntent.start !== undefined;
-    const resolvedTopK = topK || (isRange ? Math.min(10, pageIntent.end - pageIntent.start + 3) : (hasPageIntent ? 3 : (isOverview ? 6 : 4)));
+    const resolvedTopK = topK || (isRange ? Math.min(25, pageIntent.end - pageIntent.start + 5) : (hasPageIntent ? 4 : (isOverview ? 50 : 6)));
 
     return scoreChunks(chunks, query, { minScoreThreshold, materialMap, topK: resolvedTopK });
   }

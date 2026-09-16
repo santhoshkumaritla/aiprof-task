@@ -6,10 +6,15 @@ import { CitationModal } from '../../components/CitationModal';
 function formatTutorContent(text) {
   if (!text) return '';
   return String(text)
+    .replace(/\[Source:[^\]]*\]/gi, '')
+    .replace(/\(Source:[^)]*\)/gi, '')
     .replace(/^(\s*)[*-]\s+/gm, '$1• ')
     .replaceAll('**', '')
     .replace(/(^|[\s(])\*([^*\n]+)\*([\s),.:;!?]|$)/g, '$1$2$3')
-    .replace(/\*/g, '');
+    .replace(/\*/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
 }
 
 export const TutorTab = ({ projectId, project }) => {

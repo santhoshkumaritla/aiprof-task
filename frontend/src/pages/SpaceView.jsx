@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FolderKanban, ArrowRight, BookOpen, Layers, X } from 'lucide-react';
+import { Plus, FolderKanban, ArrowRight, BookOpen, Layers, X, Trash2, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { ProgressBar } from '../components/ProgressBar';
 
@@ -10,6 +10,10 @@ export const SpaceView = () => {
   const [showModal, setShowModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [selectedSpaceId, setSelectedSpaceId] = useState(null);
+  const [submittingSpace, setSubmittingSpace] = useState(false);
+  const [submittingProject, setSubmittingProject] = useState(false);
+  const [deletingSpaceId, setDeletingSpaceId] = useState(null);
+  const [deletingProjectId, setDeletingProjectId] = useState(null);
 
   // Form states
   const [spaceForm, setSpaceForm] = useState({ title: '', description: '', color: '#6366F1' });
@@ -34,19 +38,27 @@ export const SpaceView = () => {
 
   const handleCreateSpace = async (e) => {
     e.preventDefault();
+    if (submittingSpace || !spaceForm.title.trim()) return;
+
     try {
+      setSubmittingSpace(true);
       await api.createSpace(spaceForm);
       setSpaceForm({ title: '', description: '', color: '#6366F1' });
       setShowModal(false);
-      loadSpaces();
+      await loadSpaces();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSubmittingSpace(false);
     }
   };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
+    if (submittingProject || !projectForm.title.trim()) return;
+
     try {
+      setSubmittingProject(true);
       const proj = await api.createProject({
         ...projectForm,
         spaceId: selectedSpaceId
@@ -56,6 +68,35 @@ export const SpaceView = () => {
       navigate(`/projects/${proj._id}`);
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSubmittingProject(false);
+    }
+  };
+
+  const handleDeleteSpace = async (spaceId, spaceTitle) => {
+    if (!window.confirm(`Are you sure you want to delete the space "${spaceTitle}" and all its contents?`)) return;
+    try {
+      setDeletingSpaceId(spaceId);
+      await api.deleteSpace(spaceId);
+      await loadSpaces();
+    } catch (err) {
+      alert('Failed to delete space: ' + err.message);
+    } finally {
+      setDeletingSpaceId(null);
+    }
+  };
+
+  const handleDeleteProject = async (e, projectId, projectTitle) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete the project "${projectTitle}"?`)) return;
+    try {
+      setDeletingProjectId(projectId);
+      await api.deleteProject(projectId);
+      await loadSpaces();
+    } catch (err) {
+      alert('Failed to delete project: ' + err.message);
+    } finally {
+      setDeletingProjectId(null);
     }
   };
 
@@ -117,6 +158,14 @@ export const SpaceView = () => {
                 >
                   <Plus className="w-3.5 h-3.5" /> New Project in this Space
                 </button>
+                <button
+                  onClick={() => handleDeleteSpace(space._id, space.title)}
+                  disabled={deletingSpaceId === space._id}
+                  className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition border border-transparent hover:border-rose-500/20"
+                  title="Delete Space"
+                >
+                  {deletingSpaceId === space._id ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -127,10 +176,20 @@ export const SpaceView = () => {
                   <div
                     key={project._id}
                     onClick={() => navigate(`/projects/${project._id}`)}
-                    className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/40 cursor-pointer transition flex flex-col justify-between"
+                    className="group relative p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/40 cursor-pointer transition flex flex-col justify-between"
                   >
                     <div>
-                      <h3 className="font-bold text-white text-base leading-snug">{project.title}</h3>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-white text-base leading-snug">{project.title}</h3>
+                        <button
+                          onClick={(e) => handleDeleteProject(e, project._id, project.title)}
+                          disabled={deletingProjectId === project._id}
+                          className="opacity-0 group-hover:opacity-100 transition p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
+                          title="Delete Project"
+                        >
+                          {deletingProjectId === project._id ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                       <p className="text-xs text-slate-400 mt-1 line-clamp-2">{project.learningGoal || 'Active learning project.'}</p>
                     </div>
 
@@ -210,9 +269,11 @@ export const SpaceView = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"
+                  disabled={submittingSpace || !spaceForm.title.trim()}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition flex items-center gap-2"
                 >
-                  Create Space
+                  {submittingSpace && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {submittingSpace ? 'Creating...' : 'Create Space'}
                 </button>
               </div>
             </form>
@@ -264,9 +325,11 @@ export const SpaceView = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition"
+                  disabled={submittingProject || !projectForm.title.trim()}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition flex items-center gap-2"
                 >
-                  Create & Launch
+                  {submittingProject && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {submittingProject ? 'Creating & Launching...' : 'Create & Launch'}
                 </button>
               </div>
             </form>

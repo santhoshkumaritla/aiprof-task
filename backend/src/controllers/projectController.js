@@ -44,8 +44,21 @@ exports.createProject = async (req, res) => {
       }
     }
 
+    const cleanTitle = title.trim();
+
+    // Idempotency: prevent accidental double-clicks within 15 seconds from creating duplicate projects
+    const recentDuplicate = await Project.findOne({
+      userId: req.user._id,
+      spaceId,
+      title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      createdAt: { $gte: new Date(Date.now() - 15000) }
+    });
+    if (recentDuplicate) {
+      return res.status(200).json(recentDuplicate);
+    }
+
     const project = await Project.create({
-      title,
+      title: cleanTitle,
       description,
       learningGoal,
       spaceId,

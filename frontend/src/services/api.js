@@ -73,6 +73,14 @@ export const api = {
     if (!res.ok) throw new Error('Failed to load space');
     return res.json();
   },
+  deleteSpace: async (spaceId) => {
+    const res = await fetch(`${API_BASE}/spaces/${spaceId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete space');
+    return res.json();
+  },
 
   // Projects
   getProjects: async (spaceId) => {
@@ -88,6 +96,14 @@ export const api = {
       body: JSON.stringify(projectData)
     });
     if (!res.ok) throw new Error('Failed to create project');
+    return res.json();
+  },
+  deleteProject: async (projectId) => {
+    const res = await fetch(`${API_BASE}/projects/${projectId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete project');
     return res.json();
   },
   getProjectDashboard: async (projectId) => {

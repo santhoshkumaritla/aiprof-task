@@ -38,12 +38,24 @@ exports.listSpaces = async (req, res) => {
 exports.createSpace = async (req, res) => {
   try {
     const { title, description = '', icon = 'BookOpen', color = '#6366F1' } = req.body;
-    if (!title) {
+    if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Space title is required' });
     }
 
+    const cleanTitle = title.trim();
+
+    // Idempotency: prevent accidental double-clicks within 15 seconds from creating duplicate spaces
+    const recentDuplicate = await Space.findOne({
+      userId: req.user._id,
+      title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      createdAt: { $gte: new Date(Date.now() - 15000) }
+    });
+    if (recentDuplicate) {
+      return res.status(200).json(recentDuplicate);
+    }
+
     const space = await Space.create({
-      title,
+      title: cleanTitle,
       description,
       icon,
       color,

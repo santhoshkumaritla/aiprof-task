@@ -201,6 +201,15 @@ export const api = {
     if (!res.ok) throw new Error('Failed to generate quiz');
     return res.json();
   },
+  submitAdaptiveStep: async (projectId, quizId, { questionIndex, userAnswer }) => {
+    const res = await fetch(`${API_BASE}/quizzes/step/${projectId}/${quizId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ questionIndex, userAnswer })
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'Failed to process adaptive step');
+    return res.json();
+  },
   submitQuiz: async (projectId, quizId, answers) => {
     const res = await fetch(`${API_BASE}/quizzes/submit/${projectId}/${quizId}`, {
       method: 'POST',

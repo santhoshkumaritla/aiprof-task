@@ -1554,6 +1554,110 @@ Requirements: Alternate between mcq and open_ended. MCQs must have exactly 4 rea
     return questions;
   }
 
+  /**
+   * Generates a single dynamic question adaptively adjusted based on previous performance
+   */
+  async generateSingleAdaptiveQuestion({
+    projectId,
+    userId,
+    targetConcept,
+    difficulty = 'intermediate',
+    questionType = 'mcq',
+    questionNumber = 2,
+    totalQuestions = 7,
+    lastPerformance = null,
+    contextChunks = []
+  }) {
+    const startTime = Date.now();
+    const conceptName = typeof targetConcept === 'string' ? targetConcept : (targetConcept?.name || 'Core Concept');
+    const conceptId = targetConcept?._id || null;
+
+    let question = null;
+
+    if (this.geminiApiKey) {
+      try {
+        const contextSnippet = (contextChunks || []).slice(0, 3).map(c => c.content).join('\n').slice(0, 2500);
+        const prevNote = lastPerformance
+          ? `The student scored ${lastPerformance.score}% on the previous ${lastPerformance.previousDifficulty || 'question'}. Because they performed ${lastPerformance.score >= 70 ? 'WELL, escalate to a HARD/ADVANCED' : (lastPerformance.score < 50 ? 'POORLY, de-escalate to an EASY/BEGINNER' : 'MODERATELY, maintain an INTERMEDIATE')} level.`
+          : `This is question ${questionNumber} of ${totalQuestions}.`;
+
+        const prompt = `You are an expert examiner conducting an adaptive test (Question ${questionNumber} of ${totalQuestions}).
+Target Concept: "${conceptName}"
+Assigned Difficulty Level: "${difficulty}" (${difficulty === 'advanced' ? 'HARD - test deep edge cases, complex mechanics, or subtle trade-offs' : (difficulty === 'beginner' ? 'EASY - test direct definitions, core syntax, or foundational concepts' : 'MEDIUM - test practical application and standard scenarios')}).
+Performance context: ${prevNote}
+
+Study Material Excerpt:
+${contextSnippet || '(Curriculum standard principles)'}
+
+Generate exactly ONE ${questionType.toUpperCase()} question testing "${conceptName}" at ${difficulty.toUpperCase()} difficulty.
+CRITICAL RULES:
+- DO NOT use double asterisks (**) for bolding anywhere in the text or options.
+- The question must be grounded in the subject matter.
+- If MCQ: provide exactly 4 clear, plausible options. Indicate correctAnswerIndex (0-3).
+- If open_ended: provide an in-depth scenario/conceptual prompt and rubric.
+
+Return JSON ONLY matching this structure:
+{
+  "type": "${questionType}",
+  "conceptName": "${conceptName}",
+  "difficulty": "${difficulty}",
+  "questionText": "Question text here without asterisks",
+  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "correctAnswerIndex": 0,
+  "correctAnswerText": "Clear explanation of why this answer is correct",
+  "rubric": {
+    "criteria": ["Technical accuracy", "Conceptual reasoning"],
+    "keyConcepts": ["${conceptName}"]
+  }
+}`;
+
+        const raw = await this.callGemini(prompt, { json: true });
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.questionText) {
+          question = {
+            type: questionType,
+            conceptId,
+            conceptName: parsed.conceptName || conceptName,
+            difficulty: parsed.difficulty || difficulty,
+            questionText: this.cleanFormatting(parsed.questionText),
+            options: (parsed.options || []).map(opt => this.cleanFormatting(opt)),
+            correctAnswerIndex: Number.isInteger(parsed.correctAnswerIndex) ? parsed.correctAnswerIndex : 0,
+            correctAnswerText: this.cleanFormatting(parsed.correctAnswerText || ''),
+            rubric: parsed.rubric || { criteria: ['Conceptual depth'], keyConcepts: [conceptName] }
+          };
+        }
+      } catch (err) {
+        console.warn('[AIService Adaptive Step] Gemini step generation fallback:', err.message);
+      }
+    }
+
+    if (!question) {
+      const mockList = this.buildContentAwareQuestions([{ _id: conceptId, name: conceptName }], contextChunks, difficulty);
+      const matched = mockList.find(q => q.type === questionType) || mockList[0];
+      question = {
+        ...matched,
+        difficulty,
+        conceptId,
+        conceptName
+      };
+    }
+
+    await ObservabilityService.logCall({
+      userId,
+      projectId,
+      feature: 'adaptive_question_generation',
+      model: this.primaryModel,
+      provider: this.geminiApiKey ? 'gemini' : 'content-engine',
+      promptTokens: 250,
+      completionTokens: 300,
+      latencyMs: Date.now() - startTime,
+      status: 'success',
+      metadata: { questionNumber, difficulty, conceptName }
+    });
+
+    return question;
+  }
+
   async evaluateOpenEndedAnswer({
     questionText,
     userAnswer = '',

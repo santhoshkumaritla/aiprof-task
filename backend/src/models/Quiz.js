@@ -22,6 +22,8 @@ const quizSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   targetConcepts: [{ type: String }],
   questions: [questionSchema],
+  totalTargetQuestions: { type: Number, default: 7 },
+  sessionAnswers: [{ type: mongoose.Schema.Types.Mixed }],
   createdAt: { type: Date, default: Date.now }
 });
 

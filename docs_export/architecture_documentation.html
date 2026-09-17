@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Study Companion - System Architecture Documentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+    @page {
+      size: A4;
+      margin: 16mm 14mm;
+      @bottom-right {
+        content: counter(page);
+        font-family: 'Inter', sans-serif;
+        font-size: 9pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 10pt;
+    }
+
+    .header-banner {
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      background: #e0e7ff;
+      color: #3730a3;
+      border-radius: 9999px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 22pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 11pt;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 8.5pt;
+      margin-top: 8px;
+    }
+
+    .meta-item strong {
+      color: #475569;
+      display: block;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    h2 {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 1.5px solid #cbd5e1;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 8px;
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin-left: 18px;
+      margin-bottom: 10px;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 8.5pt;
+      color: #0f172a;
+    }
+
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 8pt;
+      line-height: 1.45;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+
+    .callout {
+      border-left: 4px solid #4f46e5;
+      background: #f5f3ff;
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 12px;
+      font-size: 9.5pt;
+      page-break-inside: avoid;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #3730a3;
+      margin-bottom: 3px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 10px;
+      text-align: left;
+    }
+
+    th {
+      background: #f1f5f9;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .diagram-box {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 7.5pt;
+      line-height: 1.35;
+      margin: 12px 0;
+      white-space: pre;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <span class="badge">Technical Specification Document</span>
+    <h1>AI Study Companion</h1>
+    <div class="subtitle">Comprehensive System Architecture, Data Pipelines & Technical Specifications</div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Document Version</strong>
+        v3.2 — Production Release
+      </div>
+      <div class="meta-item">
+        <strong>System Author</strong>
+        Engineering Team
+      </div>
+      <div class="meta-item">
+        <strong>Deployment Target</strong>
+        Render (Backend) / Netlify (Frontend)
+      </div>
+      <div class="meta-item">
+        <strong>Core Runtime</strong>
+        Node.js 18+ / React 18 / Gemini Flash
+      </div>
+    </div>
+  </div>
+
+  <h2>1. System Overview & Architectural Vision</h2>
+  <p>
+    The <strong>AI Study Companion</strong> is an enterprise-grade learning workspace engineered to facilitate personalized, mastery-based education over complex technical curricula, textbooks, and handwritten notes. Unlike typical superficial chatbots, the system operates as a closed-loop pedagogical engine:
+  </p>
+  <ul>
+    <li><strong>Curriculum Structuring:</strong> Organizes student learning into broad <em>Spaces</em> (e.g., Database Systems, Machine Learning) and targeted <em>Projects</em> (e.g., SQL Foundations, Gradient Descent Optimization).</li>
+    <li><strong>High-Capacity Document Processing:</strong> Ingests large textbooks and scanned slide decks up to 300MB and 500+ pages using coordinate-preserving layout extraction and batch insertion.</li>
+    <li><strong>Multimodal Vision OCR:</strong> Transcribes cursive handwriting, mathematical derivations, flowchart nodes, and SQL tables from camera/CamScanner scans using the Gemini Files API.</li>
+    <li><strong>Strictly Grounded AI Tutor:</strong> Answers student queries strictly using retrieved evidence chunks with exact page-level citations, refusing out-of-document trivia.</li>
+    <li><strong>Computer-Adaptive Testing (CAT):</strong> Dynamically adjusts quiz question difficulty question-by-question based on real-time performance.</li>
+    <li><strong>Mastery Tracking & Observability:</strong> Computes real-time concept mastery maps, actionable remedial recommendations, and token/latency telemetry for administrative oversight.</li>
+  </ul>
+
+  <h2>2. High-Level System Architecture Diagram</h2>
+  <div class="diagram-box">
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                CLIENT TIER (React 18 / Vite / Netlify)                      │
+│  Spaces & Projects View │ Document Explorer │ Grounded AI Tutor │ Adaptive Quiz (CAT) │ Admin   │
+└──────────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                               │ RESTful APIs / Server-Sent Events (SSE)
+┌──────────────────────────────────────────────▼──────────────────────────────────────────────┐
+│                                BACKEND SERVER (Node.js / Express / Render)                   │
+│                                                                                             │
+│  ┌───────────────────────┐  ┌─────────────────────────┐  ┌───────────────────────────────┐  │
+│  │ Authentication & RBAC │  │ Multi-Tenant Isolation   │  │ Background Job Queue Engine   │  │
+│  │ JWT / bcryptjs / Role │  │ Project Ownership Guards │  │ Asynchronous OCR & Ingestion  │  │
+│  └───────────────────────┘  └─────────────────────────┘  └───────────────────────────────┘  │
+│                                                                                             │
+│  ┌───────────────────────┐  ┌─────────────────────────┐  ┌───────────────────────────────┐  │
+│  │ Document Pipeline     │  │ Page-Aware RAG Engine   │  │ Computer-Adaptive Testing     │  │
+│  │ Multer 300MB / Layout │  │ In-Memory Token Scoring  │  │ Dynamic Difficulty Selector   │  │
+│  │ 400-Chunk Batches     │  │ Exact Page / Range Match │  │ Real-Time Rubric Evaluator    │  │
+│  └───────────────────────┘  └─────────────────────────┘  └───────────────────────────────┘  │
+│                                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ AI Service Abstraction Layer (Automatic Model Failover & Zero-Downtime Fallback Engine) │  │
+│  │ Primary: Gemini 3.5 Flash  ─►  Fallback: Gemini 3.1 Flash Lite  ─►  Content Engine Fallback│  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────┬───────────────────────────────┬──────────────────────────┘
+                                   │                               │
+            ┌──────────────────────▼───────┐             ┌─────────▼──────────────────────────┐
+            │   MONGODB ATLAS PERSISTENCE  │             │   EXTERNAL AI ENGINE (Google AI)   │
+            │ • Users & RBAC Roles         │             │ • Gemini 3.5 Flash Multimodal API  │
+            │ • Spaces & Projects          │             │ • Gemini Files API (Vision OCR)    │
+            │ • Material Chunks (Page-Idx) │             │ • Gemini 3.1 Flash Lite (Failover) │
+            │ • Concept Mastery Nodes      │             │ • Structured JSON Generation Engine│
+            │ • Quizzes & CAT Attempts     │             └────────────────────────────────────┘
+            │ • Observability & AI Telemetry│
+            └──────────────────────────────┘</div>
+
+  <div class="page-break"></div>
+
+  <h2>3. Core Architectural Subsystems</h2>
+
+  <h3>3.1 Multi-Tenant Hierarchy & RBAC Security Layer</h3>
+  <p>
+    The platform enforces complete tenant isolation across users. Data access follows a strict three-tier hierarchy: <code>User ➔ Space ➔ Project ➔ Materials / Quizzes / Conversations</code>.
+  </p>
+  <ul>
+    <li><strong>Isolation Middleware:</strong> The <code>checkProjectAccess</code> middleware intercepts every project-scoped request. It resolves the project ID against the authenticated JWT user ID. Cross-tenant access attempts immediately terminate with HTTP 403 Forbidden.</li>
+    <li><strong>Role-Based Access Control (RBAC):</strong> Two strict roles exist: <code>user</code> (Learner) and <code>admin</code> (Instructor/Administrator). Administrators alone possess permission to access <code>/api/admin/*</code> observability dashboards, token expenditure logs, and platform latency metrics.</li>
+    <li><strong>Idempotent Debounce Guards:</strong> Space and project creation controllers enforce a 15-second debounce window preventing duplicate creation from rapid double-clicks.</li>
+  </ul>
+
+  <h3>3.2 High-Capacity Document Processing & Chunking Pipeline</h3>
+  <p>
+    Real-world university curricula involve dense slide decks, conference publications, and scanned textbooks. The ingestion pipeline supports files up to <strong>300MB</strong> and <strong>500+ pages</strong>:
+  </p>
+  <ul>
+    <li><strong>Multer Storage Engine:</strong> Configured with 300MB limits, memory-efficient streaming to disk, and specialized error traps preventing unhandled exceptions.</li>
+    <li><strong>Coordinate-Preserving Layout Engine:</strong> Uses <code>pdf-parse</code> stream hooks to preserve indentation, tabular relationships, headers, and code snippets.</li>
+    <li><strong>400-Chunk Batch Ingestion:</strong> To prevent MongoDB BSON document size limits (16MB) and network connection pool exhaustion during massive 500-page ingestions, chunks are partitioned and written in batches of 400 documents.</li>
+    <li><strong>Scanner Artifact Filtration:</strong> Automatically strips CamScanner watermarks (<code>"Scanned by CamScanner"</code>, <code>"Adobe Scan"</code>, isolated digit stamps) preventing skewed text density metrics.</li>
+  </ul>
+
+  <h3>3.3 Multimodal Vision OCR Engine for Handwritten Notes</h3>
+  <p>
+    When a student uploads camera photos or scanned handwritten notebooks (e.g., student lecture notes), standard text extraction produces empty or gibberish streams. The system deploys an automated Multimodal OCR sub-pipeline:
+  </p>
+  <ul>
+    <li><strong>Watermark-Aware OCR Trigger:</strong> Computes the real alphanumeric density per page. If text density falls below threshold, the document is flagged for Vision OCR.</li>
+    <li><strong>Gemini Files API Ingestion:</strong> The PDF binary is securely uploaded directly to Google Gemini Files API, generating a persistent remote URI.</li>
+    <li><strong>Batch Processing Strategy:</strong> To prevent token output exhaustion and network timeouts, large documents are processed in consecutive 15-page batches.</li>
+    <li><strong>Demarcated Verbatim Extraction:</strong> Each page is demarcated using <code>=== Page X ===</code> headers, transcribing handwritten mathematical formulas, SQL syntax, flowchart labels, and bulleted lists verbatim.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h3>3.4 Scalable Page-Aware RAG Engine</h3>
+  <p>
+    The Retrieval-Augmented Generation (RAG) engine operates in-memory with sub-60ms retrieval latency across 500 pages (1,000+ chunks), implementing four distinct query routing mechanisms:
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Query Type</th>
+        <th>Sample Query</th>
+        <th>Retrieval & Routing Strategy</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Exact Page Intent</strong></td>
+        <td><em>"What is in page 24?"</em></td>
+        <td>Isolates chunks strictly where <code>pageNumber === 24</code>; suppresses noise from other sections.</td>
+      </tr>
+      <tr>
+        <td><strong>Page Range Intent</strong></td>
+        <td><em>"Summarize pages 10 to 20"</em></td>
+        <td>Filters chunks strictly within <code>[startPage, endPage]</code>, ranking by token density.</td>
+      </tr>
+      <tr>
+        <td><strong>Full Overview / Summary</strong></td>
+        <td><em>"Explain core concepts from uploaded material"</em></td>
+        <td>Performs stratified uniform sampling from Page 1 to Page N, ensuring representation across all chapters.</td>
+      </tr>
+      <tr>
+        <td><strong>Terminal Page Intent</strong></td>
+        <td><em>"What is in the last page?"</em></td>
+        <td>Resolves dynamic <code>maxPage</code> for the target document (e.g., Page 24 References).</td>
+      </tr>
+      <tr>
+        <td><strong>Concept Search</strong></td>
+        <td><em>"How does Gradient Descent minimize loss?"</em></td>
+        <td>Scores chunks via token coverage ratio (75%), token density (25%), and section header match boost.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="callout-title">Strict Document Grounding & Hallucination Guardrail</div>
+    The AI Tutor is strictly restricted to the uploaded study materials. If a user asks a question outside the uploaded document (e.g., asking about <em>"father of nation"</em> inside an SQL project), the system immediately detects zero evidence matches, sets <code>isUnsupported: true</code>, clears citations, and politely refuses rather than hallucinating external trivia.
+  </div>
+
+  <h3>3.5 Computer-Adaptive Testing (CAT) & Mastery Engine</h3>
+  <p>
+    The assessment system implements an Item Response Theory (IRT)-inspired dynamic evaluation loop. Rather than static questionnaires, tests evolve dynamically across 6 to 8 questions:
+  </p>
+  <ul>
+    <li><strong>Step-by-Step Question Generation:</strong> Question 1 establishes baseline proficiency. Upon submission, the engine evaluates the response and calculates the next difficulty:
+      <ul>
+        <li>Score &ge; 70%: Escalates to <strong>Advanced / Hard</strong> difficulty.</li>
+        <li>Score 50% &ndash; 69%: Stabilizes at <strong>Intermediate / Medium</strong> difficulty.</li>
+        <li>Score &lt; 50%: De-escalates to <strong>Beginner / Easy</strong> difficulty.</li>
+      </ul>
+    </li>
+    <li><strong>Rubric-Based AI Grading:</strong> Open-ended responses are graded across accuracy, completeness, and clarity (0–100), awarding partial credit and constructive remedial feedback.</li>
+    <li><strong>Concept Mastery Decay & Growth:</strong> Every answered question updates the corresponding concept node mastery score in the database, reflecting real-time competency.</li>
+  </ul>
+
+  <h3>3.6 Telemetry & Administrative Observability</h3>
+  <p>
+    Every AI interaction across the platform is logged in the <code>AIUsageLog</code> collection with microsecond timestamps:
+  </p>
+  <ul>
+    <li>Tracks prompt tokens, completion tokens, execution latency (ms), model used, user ID, and HTTP status.</li>
+    <li>Calculates estimated operational costs in USD based on model pricing tiers.</li>
+    <li>Surfaces error rates, peak latency percentiles, and active background job queues on the Admin Console.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>4. Database Schema Specifications</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Collection</th>
+        <th>Primary Fields</th>
+        <th>Indexes & Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users</code></td>
+        <td><code>_id, name, email, password, role, avatarColor, preferences</code></td>
+        <td>Unique index on <code>email</code>. RBAC authentication and profile storage.</td>
+      </tr>
+      <tr>
+        <td><code>spaces</code></td>
+        <td><code>_id, title, description, color, userId, createdAt</code></td>
+        <td>Compound index on <code>{ userId: 1, createdAt: -1 }</code>. Top-level subject domains.</td>
+      </tr>
+      <tr>
+        <td><code>projects</code></td>
+        <td><code>_id, spaceId, userId, title, learningGoal, progress, stats</code></td>
+        <td>Index on <code>spaceId, userId</code>. Focused learning workspaces.</td>
+      </tr>
+      <tr>
+        <td><code>materials</code></td>
+        <td><code>_id, projectId, originalName, fileType, pagesCount, chunksCount, status</code></td>
+        <td>Index on <code>projectId, status</code>. Metadata for uploaded textbooks and notes.</td>
+      </tr>
+      <tr>
+        <td><code>materialchunks</code></td>
+        <td><code>_id, materialId, projectId, pageNumber, chunkIndex, content, keywords, tokenCount</code></td>
+        <td>Compound indexes on <code>{ projectId: 1, pageNumber: 1 }</code> and <code>{ projectId: 1, chunkIndex: 1 }</code>.</td>
+      </tr>
+      <tr>
+        <td><code>concepts</code></td>
+        <td><code>_id, projectId, title, description, mastery, prerequisites</code></td>
+        <td>Index on <code>projectId</code>. Dynamic knowledge graph nodes.</td>
+      </tr>
+      <tr>
+        <td><code>quizzes</code></td>
+        <td><code>_id, projectId, questions, totalTargetQuestions, sessionAnswers, isAdaptive</code></td>
+        <td>Index on <code>projectId</code>. Adaptive quiz configurations and state.</td>
+      </tr>
+      <tr>
+        <td><code>quizattempts</code></td>
+        <td><code>_id, quizId, userId, answers, score, evaluatedAnswers</code></td>
+        <td>Index on <code>quizId, userId</code>. Historical performance and rubric feedback.</td>
+      </tr>
+      <tr>
+        <td><code>aiusagelogs</code></td>
+        <td><code>_id, userId, projectId, feature, model, promptTokens, completionTokens, latencyMs, status</code></td>
+        <td>Compound index on <code>{ createdAt: -1, feature: 1 }</code>. Observability telemetry.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5. Security, Scalability & Production Deployment</h2>
+  <ul>
+    <li><strong>Frontend Deployment:</strong> Hosted on <strong>Netlify</strong> with automated continuous integration from GitHub <code>main</code>, SPA routing rewrites via <code>netlify.toml</code>, and asset bundling.</li>
+    <li><strong>Backend Deployment:</strong> Hosted on <strong>Render</strong> running Node.js 18+, automated startup bootstrapping (<code>bootstrap.js</code>) ensuring admin account initialization, and health monitoring at <code>/health</code>.</li>
+    <li><strong>Database:</strong> <strong>MongoDB Atlas</strong> with replica sets, automated backups, and encrypted transit (TLS 1.3).</li>
+    <li><strong>CORS & Security Headers:</strong> Explicit CORS policies with credentials, JSON payload limits (10MB), and express rate limiting (180 requests/minute per IP).</li>
+  </ul>
+
+</body>
+</html>
